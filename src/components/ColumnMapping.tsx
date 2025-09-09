@@ -123,12 +123,12 @@ export function ColumnMapping({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Compare Column from "{file1Name}"
+              Compare Column from &quot;{file1Name}&quot;
             </label>
             <select
               value={file1Column}
               onChange={(e) => setFile1Column(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-black"
             >
               <option value="">Select a column...</option>
               {file1Columns.map((column) => (
@@ -144,7 +144,7 @@ export function ColumnMapping({
               <p className="text-xs font-medium text-gray-700 mb-2">
                 Column Context:
               </p>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1 text-gray-600">
                 {getColumnPreview(file1Columns, file1Column)}
               </div>
             </div>
@@ -162,12 +162,12 @@ export function ColumnMapping({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              With Column from "{file2Name}"
+              With Column from &quot;{file2Name}&quot;
             </label>
             <select
               value={file2Column}
               onChange={(e) => setFile2Column(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-black"
             >
               <option value="">Select a column...</option>
               {file2Columns.map((column) => (
@@ -183,7 +183,7 @@ export function ColumnMapping({
               <p className="text-xs font-medium text-gray-700 mb-2">
                 Column Context:
               </p>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1 text-gray-600">
                 {getColumnPreview(file2Columns, file2Column)}
               </div>
             </div>
@@ -196,11 +196,11 @@ export function ColumnMapping({
         <div className="bg-success-50 border border-success-200 rounded-lg p-4">
           <div className="flex items-center space-x-2">
             <div className="h-2 w-2 bg-success-500 rounded-full"></div>
-            <p className="text-sm text-success-800">
-              <span className="font-medium">"{file1Column}"</span> from{" "}
-              {file1Name} will be compared with{" "}
-              <span className="font-medium">"{file2Column}"</span> from{" "}
-              {file2Name}
+            <p className="text-sm text-success-800 text-gray-800">
+              <span className="font-medium">&quot;{file1Column}&quot;</span>{" "}
+              from {file1Name} will be compared with{" "}
+              <span className="font-medium">&quot;{file2Column}&quot;</span>{" "}
+              from {file2Name}
             </p>
           </div>
         </div>
@@ -227,7 +227,7 @@ export function ColumnMapping({
               Smart matching features (coming soon)
             </p>
           </div>
-          <Button variant="outline" size="sm" disabled>
+          <Button variant="outline" size="md" disabled>
             Configure
           </Button>
         </div>

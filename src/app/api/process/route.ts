@@ -40,13 +40,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Get session
+    console.log(`Process API: Getting session ${sessionId}`);
     const session = getSession(sessionId);
     if (!session) {
+      console.log(`Process API: Session ${sessionId} not found or expired`);
       return NextResponse.json(
         { success: false, error: "Session not found or expired" },
         { status: 404 }
       );
     }
+    console.log(`Process API: Session ${sessionId} found successfully`);
 
     // Validate session has both files
     if (!session.files.file1 || !session.files.file2) {
@@ -89,16 +92,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate merge operations columns exist in the files
+    // BUT skip validation for special operations like MERGE_ALL
     const allColumns = new Set([
       ...session.files.file1.columns,
       ...session.files.file2.columns,
     ]);
+
     for (const operation of mergeOptions.operations) {
+      // Skip validation for special operations
+      if (
+        operation.operation === "MERGE_ALL" ||
+        operation.column === "ALL_COLUMNS"
+      ) {
+        continue;
+      }
+
       if (!allColumns.has(operation.column)) {
         return NextResponse.json(
           {
             success: false,
-            error: `Column '${operation.column}' specified in merge operations not found in either file`,
+            error: `Column '${
+              operation.column
+            }' specified in merge operations not found in either file. Available columns: ${Array.from(
+              allColumns
+            ).join(", ")}`,
           },
           { status: 400 }
         );
@@ -129,10 +146,12 @@ export async function POST(request: NextRequest) {
       }
 
       // Update session with results and processing options
+      // Make sure to update the session's lastActivity to prevent deletion
       const sessionUpdated = updateSession(sessionId, {
         columnMapping,
         mergeOptions,
         results,
+        lastActivity: new Date(), // Explicitly update activity timestamp
       });
 
       if (!sessionUpdated) {

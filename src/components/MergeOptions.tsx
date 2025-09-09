@@ -12,6 +12,11 @@ interface MergeOptionsProps {
 
 const MERGE_OPERATIONS = [
   {
+    value: "MERGE_ALL",
+    label: "Merge All Columns",
+    description: "Combine both records keeping all columns from both files",
+  },
+  {
     value: "TAKE_NEW",
     label: "Take New (File 2)",
     description: "Use value from second file",
@@ -77,22 +82,16 @@ export function MergeOptions({
   const allColumns = Array.from(new Set([...file1Columns, ...file2Columns]));
 
   useEffect(() => {
-    // Auto-add common columns if no initial options
+    // Auto-add simple merge all operation if no initial options
     if (!initialOptions && operations.length === 0 && allColumns.length > 0) {
-      const commonColumns = file1Columns.filter((col) =>
-        file2Columns.includes(col)
-      );
+      const autoOperations: MergeOperation[] = [
+        {
+          column: "ALL_COLUMNS",
+          operation: "MERGE_ALL",
+        },
+      ];
 
-      if (commonColumns.length > 0) {
-        const autoOperations: MergeOperation[] = commonColumns
-          .slice(0, 3)
-          .map((column) => ({
-            column,
-            operation: "TAKE_NEW",
-          }));
-
-        setOperations(autoOperations);
-      }
+      setOperations(autoOperations);
     }
   }, [
     file1Columns,
@@ -156,37 +155,72 @@ export function MergeOptions({
         </p>
       </div>
 
+      {/* Quick Action - Merge All */}
+      {operations.length === 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 className="font-medium text-blue-900 mb-2">Quick Start</h4>
+          <p className="text-sm text-blue-800 mb-3">
+            Want to simply merge all data without calculations? Use the "Merge
+            All Columns" option.
+          </p>
+          <Button
+            onClick={() =>
+              setOperations([
+                {
+                  column: "ALL_COLUMNS",
+                  operation: "MERGE_ALL",
+                },
+              ])
+            }
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            size="sm"
+          >
+            Use Simple Merge All
+          </Button>
+        </div>
+      )}
+
       {/* Operations List */}
       <div className="space-y-4">
         {operations.map((operation, index) => (
           <div
             key={index}
-            className="border border-gray-200 rounded-lg p-4 bg-white"
+            className="border border-gray-300 rounded-lg p-4 bg-white shadow-sm"
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
               {/* Column Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1">
                   Column
                 </label>
-                <select
-                  value={operation.column}
-                  onChange={(e) =>
-                    updateOperation(index, "column", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                >
-                  {allColumns.map((column) => (
-                    <option key={column} value={column}>
-                      {column}
-                    </option>
-                  ))}
-                </select>
+                {operation.operation === "MERGE_ALL" ? (
+                  <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700">
+                    All Columns
+                  </div>
+                ) : (
+                  <select
+                    value={operation.column}
+                    onChange={(e) =>
+                      updateOperation(index, "column", e.target.value)
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  >
+                    {allColumns.map((column) => (
+                      <option
+                        key={column}
+                        value={column}
+                        className="text-gray-900"
+                      >
+                        {column}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Operation Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1">
                   Operation
                 </label>
                 <select
@@ -194,10 +228,14 @@ export function MergeOptions({
                   onChange={(e) =>
                     updateOperation(index, "operation", e.target.value)
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 >
                   {MERGE_OPERATIONS.map((op) => (
-                    <option key={op.value} value={op.value}>
+                    <option
+                      key={op.value}
+                      value={op.value}
+                      className="text-gray-900"
+                    >
                       {op.label}
                     </option>
                   ))}
@@ -210,7 +248,7 @@ export function MergeOptions({
                   variant="outline"
                   size="sm"
                   onClick={() => removeOperation(index)}
-                  className="text-error-600 hover:bg-error-50 hover:border-error-300"
+                  className="text-red-600 hover:bg-red-50 hover:border-red-300 border-gray-300"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -218,8 +256,8 @@ export function MergeOptions({
             </div>
 
             {/* Operation Description */}
-            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-sm text-gray-700">
                 {getOperationDescription(operation.operation)}
               </p>
             </div>
@@ -228,10 +266,14 @@ export function MergeOptions({
 
         {/* Empty State */}
         {operations.length === 0 && (
-          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
             <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No merge operations defined</p>
-            <Button onClick={addOperation} disabled={allColumns.length === 0}>
+            <p className="text-gray-600 mb-4">No merge operations defined</p>
+            <Button
+              onClick={addOperation}
+              disabled={allColumns.length === 0}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add First Operation
             </Button>
@@ -246,6 +288,7 @@ export function MergeOptions({
             variant="outline"
             onClick={addOperation}
             disabled={operations.length >= allColumns.length}
+            className="border-gray-300 hover:bg-gray-50 text-gray-700"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Another Operation
@@ -255,42 +298,20 @@ export function MergeOptions({
 
       {/* Summary */}
       {operations.length > 0 && (
-        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-          <h4 className="font-medium text-primary-900 mb-2">Merge Summary</h4>
-          <div className="space-y-1 text-sm text-primary-800">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <h4 className="font-medium text-green-900 mb-2">Merge Summary</h4>
+          <div className="space-y-1 text-sm text-green-800">
             {operations.map((op, index) => (
               <p key={index}>
-                <span className="font-medium">{op.column}:</span>{" "}
+                <span className="font-medium">
+                  {op.column === "ALL_COLUMNS" ? "All Columns" : op.column}:
+                </span>{" "}
                 {MERGE_OPERATIONS.find((o) => o.value === op.operation)?.label}
               </p>
             ))}
           </div>
         </div>
       )}
-
-      {/* Advanced Options Placeholder */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">
-              Advanced Merge Options
-            </h4>
-            <p className="text-xs text-gray-600 mt-1">
-              Additional merge features (coming soon)
-            </p>
-          </div>
-          <Button variant="outline" size="sm" disabled>
-            Configure
-          </Button>
-        </div>
-
-        {/* TODO: Future advanced options */}
-        <div className="mt-3 text-xs text-gray-500 space-y-1">
-          <p>• Custom merge formulas and calculations</p>
-          <p>• Conditional merge operations</p>
-          <p>• Data type-specific merge rules</p>
-        </div>
-      </div>
     </div>
   );
 }

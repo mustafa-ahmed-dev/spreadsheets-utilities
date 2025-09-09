@@ -1,4 +1,3 @@
-// src/lib/file-processor.ts
 import * as ExcelJS from "exceljs";
 import Papa from "papaparse";
 import { v4 as uuidv4 } from "uuid";

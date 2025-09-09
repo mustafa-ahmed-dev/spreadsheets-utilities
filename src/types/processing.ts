@@ -1,4 +1,3 @@
-// src/types/processing.ts
 export interface ColumnMapping {
   file1Column: string;
   file2Column: string;
@@ -14,6 +13,7 @@ export interface ColumnMapping {
 export interface MergeOperation {
   column: string;
   operation:
+    | "MERGE_ALL"
     | "SUM"
     | "TAKE_NEW"
     | "TAKE_OLD"

@@ -17,8 +17,60 @@ export function processDuplicates(
     const { duplicates, uniqueInFile1, uniqueInFile2 } =
       findDuplicatesAndUnique(file1, file2, columnMapping);
 
-    // Merge duplicate records based on merge options
-    const merged = mergeDuplicateRecords(duplicates, mergeOptions);
+    // Check if we're using MERGE_ALL operation
+    const mergeAllOperation = mergeOptions.operations.find(
+      (op) => op.operation === "MERGE_ALL"
+    );
+
+    let merged: Record<string, any>[] = [];
+
+    if (mergeAllOperation) {
+      // For MERGE_ALL: combine ALL records from both files
+      // Add all records from file1
+      merged = [...file1.data];
+
+      // Add all records from file2
+      file2.data.forEach((file2Record) => {
+        // Check if this record exists in merged data (to avoid true duplicates)
+        const isDuplicate = duplicates.some(
+          (dup) => dup.file2Record === file2Record
+        );
+
+        if (!isDuplicate) {
+          // Add file2 record with potential column prefixing for conflicts
+          const mergedRecord: Record<string, any> = { ...file2Record };
+
+          // Check if any column names conflict and rename them
+          const file1Columns = new Set(file1.columns);
+          Object.keys(file2Record).forEach((key) => {
+            if (file1Columns.has(key)) {
+              // Column exists in both files, check if we need to add prefix
+              // Only add prefix if the column doesn't have the same structure/meaning
+              // For your use case (same column "Coupon Code"), keep it as is
+              // mergedRecord[`file2_${key}`] = file2Record[key];
+              // delete mergedRecord[key];
+            }
+          });
+
+          merged.push(mergedRecord);
+        }
+      });
+
+      // Also merge any actual duplicate pairs if they exist
+      const duplicateMerged = mergeDuplicateRecords(duplicates, mergeOptions);
+
+      // Replace the individual records with merged versions for true duplicates
+      duplicates.forEach(({ file1Record }, index) => {
+        // Remove the individual file1 record
+        const file1Index = merged.findIndex((record) => record === file1Record);
+        if (file1Index !== -1) {
+          merged[file1Index] = duplicateMerged[index];
+        }
+      });
+    } else {
+      // Regular merge operations (only for actual duplicates)
+      merged = mergeDuplicateRecords(duplicates, mergeOptions);
+    }
 
     // Calculate statistics
     const stats = calculateStatistics(
@@ -92,7 +144,6 @@ function findDuplicatesAndUnique(
 
 /**
  * Check if two values match
- * TODO: In the future add smart matching (ignore punctuation, spaces, partial matching)
  */
 function isValueMatch(value1: any, value2: any): boolean {
   // Handle null/undefined values
@@ -110,21 +161,6 @@ function isValueMatch(value1: any, value2: any): boolean {
   const str2 = String(value2).trim().toLowerCase();
 
   return str1 === str2;
-
-  // TODO: Future smart matching implementation
-  // if (smartMatchOptions?.ignorePunctuation) {
-  //   str1 = str1.replace(/[^\w\s]/g, '');
-  //   str2 = str2.replace(/[^\w\s]/g, '');
-  // }
-  //
-  // if (smartMatchOptions?.ignoreSpaces) {
-  //   str1 = str1.replace(/\s+/g, '');
-  //   str2 = str2.replace(/\s+/g, '');
-  // }
-  //
-  // if (smartMatchOptions?.partialMatch) {
-  //   return calculateSimilarity(str1, str2) >= smartMatchOptions.similarityThreshold;
-  // }
 }
 
 /**
@@ -138,12 +174,38 @@ function mergeDuplicateRecords(
   mergeOptions: MergeOptions
 ): Record<string, any>[] {
   return duplicates.map(({ file1Record, file2Record }) => {
+    // Check if we're using MERGE_ALL operation
+    const mergeAllOperation = mergeOptions.operations.find(
+      (op) => op.operation === "MERGE_ALL"
+    );
+
+    if (mergeAllOperation) {
+      // For MERGE_ALL, combine all columns from both files
+      const mergedRecord: Record<string, any> = { ...file1Record };
+
+      // Add all columns from file2, with file2_ prefix if there are conflicts
+      Object.keys(file2Record).forEach((key) => {
+        if (key in mergedRecord && mergedRecord[key] !== file2Record[key]) {
+          // Column exists in both files with different values, add with prefix
+          mergedRecord[`file2_${key}`] = file2Record[key];
+        } else if (!(key in mergedRecord)) {
+          // Column doesn't exist in file1, add it directly
+          mergedRecord[key] = file2Record[key];
+        }
+        // If values are the same, keep the file1 value
+      });
+
+      return mergedRecord;
+    }
+
+    // Regular column-specific merge operations
     const mergedRecord: Record<string, any> = { ...file1Record }; // Start with file1 as base
 
     // Apply merge operations for each specified column
     for (const operation of mergeOptions.operations) {
-      const { column, operation: op } = operation;
+      if (operation.operation === "MERGE_ALL") continue; // Already handled above
 
+      const { column, operation: op } = operation;
       const value1 = file1Record[column];
       const value2 = file2Record[column];
 
@@ -167,6 +229,10 @@ function applyMergeOperation(value1: any, value2: any, operation: string): any {
   }
 
   switch (operation) {
+    case "MERGE_ALL":
+      // This case is handled in mergeDuplicateRecords function
+      return value1;
+
     case "TAKE_NEW":
       return value2;
 
@@ -307,9 +373,33 @@ function validateProcessingInputs(
     throw new Error("No merge operations specified");
   }
 
+  // Special validation for MERGE_ALL - it doesn't need specific column validation
+  const hasMergeAll = mergeOptions.operations.some(
+    (op) => op.operation === "MERGE_ALL"
+  );
+
+  if (!hasMergeAll) {
+    // Validate that all columns exist only if not using MERGE_ALL
+    const allColumns = new Set([...file1.columns, ...file2.columns]);
+
+    for (const operation of mergeOptions.operations) {
+      if (!operation.column || !operation.operation) {
+        throw new Error("Invalid merge operation configuration");
+      }
+
+      if (!allColumns.has(operation.column)) {
+        throw new Error(
+          `Column '${operation.column}' specified in merge operations not found in either file`
+        );
+      }
+    }
+  }
+
   for (const operation of mergeOptions.operations) {
-    if (!operation.column || !operation.operation) {
-      throw new Error("Invalid merge operation configuration");
+    if (!operation.operation) {
+      throw new Error(
+        "Invalid merge operation configuration - missing operation"
+      );
     }
   }
 }
